@@ -90,10 +90,10 @@
                 (let [url  (page+area+section+query->url
                             page-number area section query-str)
                       page (u/fetch-url url)]
-                  (page+area->item-map page area))))
-        page-range)
-    concat
-    first))
+                  (page+area->item-map page area)))
+              page-range)
+        concat
+        first)))
 
 (def section-map
   {:community "ccc"
