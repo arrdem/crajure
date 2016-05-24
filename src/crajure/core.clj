@@ -98,16 +98,20 @@
             page-range)))
 
 (def section-map
-  {:community "ccc"
-   :events    "eee"
-   :for-sale  "sss"
-   :gigs      "ggg"
-   :housing   "hhh"
-   :jobs      "jjj"
-   :personals "ppp"
-   :resumes   "rrr"
-   :services  "bbb"
-   :all       ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
+  {:community/all      "ccc"
+   :events/all         "eee"
+   :for-sale/all       "sss"
+   :gigs/all           "ggg"
+   :housing/all        "hhh"
+   :housing/apartments "apa"
+   :housing/office     "off"
+   :housing/sublets    "sub"
+   :housing/rooms      "roo"
+   :jobs/all           "jjj"
+   :personals/all      "ppp"
+   :resumes/all        "rrr"
+   :services/all       "bbb"
+   :all                ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
 
 (defn get-section-code
   [section-key]
