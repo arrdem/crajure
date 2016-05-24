@@ -13,7 +13,6 @@
   (boolean
    (fetch-url url)))
 
-
 (defn dollar-str->int [x-dollars]
   (try (->> x-dollars
             rest
@@ -42,4 +41,3 @@
    (if (seq? x)
      (vec x)
      (vector x))))
-

@@ -14,8 +14,7 @@
 
 (def areas (memoize generate-areas))
 
-
 (defn area-map []
   (assoc
-      (into {} (map (fn [i] [(keyword i) i]) (areas)))
-    :all (vec (areas))))
+   (into {} (map (fn [i] [(keyword i) i]) (areas)))
+   :all (vec (areas))))

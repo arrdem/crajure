@@ -4,7 +4,6 @@
             [crajure.util :as u]
             [crajure.areas :as a]))
 
-
 (defn page+area+section+query->url [page-str area-str section-str query-str]
   (apply str
          (replace {:area area-str
@@ -136,13 +135,13 @@
   ;;         btw, can use :all for every section.
   "
   ([query area section]
-     (query-cl {:query query :area area :section section}))
+   (query-cl {:query query :area area :section section}))
   ([{:keys [query area section]}]
-     (let [terms (search-str->query-str query)
-           section-seq (u/->flat-seq (get-section-code section))
-           area-seq (u/->flat-seq (get-area-code area))]
-       (or (apply concat
-                  (for [a area-seq
-                        s section-seq]
-                    (cl-item-seq a s terms)))
-           []))))
+   (let [terms (search-str->query-str query)
+         section-seq (u/->flat-seq (get-section-code section))
+         area-seq (u/->flat-seq (get-area-code area))]
+     (or (apply concat
+                (for [a area-seq
+                      s section-seq]
+                  (cl-item-seq a s terms)))
+         []))))
