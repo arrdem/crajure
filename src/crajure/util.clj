@@ -1,13 +1,20 @@
 (ns crajure.util
-  (:require [net.cgrand.enlive-html :as html]))
+  (:require [net.cgrand.enlive-html :as html]
+            [rate-gate.core :refer [rate-limit]]))
 
-(defn fetch-url [url & properties]
-  (with-open [inputstream (-> (java.net.URL. url)
-                              .openConnection
-                              (doto (.setRequestProperty
-                                     "User-Agent" "Mozilla/5.0"))
-                              .getContent)]
-    (html/html-resource inputstream)))
+(def
+  ^{:arglists '([url & properties])}
+  fetch-url
+  (memoize
+   (rate-limit
+    (fn [url & properties]
+      (with-open [inputstream (-> (java.net.URL. url)
+                                  .openConnection
+                                  (doto (.setRequestProperty
+                                         "User-Agent" "Mozilla/5.0"))
+                                  .getContent)]
+        (html/html-resource inputstream)))
+    10 30000)))
 
 (defn has-page? [url]
   (boolean
