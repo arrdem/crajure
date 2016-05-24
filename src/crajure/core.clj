@@ -70,14 +70,19 @@
    :region   region
    :item-url item-url})
 
-(defn page+area->item-map [page area]
-  (map ->item-map
-       (repeat area)
-       (page->prices page)
-       (page->titles page)
-       (page->dates page)
-       (page->item-urls page area)
-       (page->regions page)))
+(def
+  ^{:arglists '([url area])}
+  url+area->item-map
+  (memoize
+   (fn [url area]
+     (let [page (u/fetch-url url)]
+       (map ->item-map
+            (repeat area)
+            (page->prices page)
+            (page->titles page)
+            (page->dates page)
+            (page->item-urls page area)
+            (page->regions page))))))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
@@ -86,14 +91,11 @@
 (defn cl-item-seq [area section query-str]
   (let [page-count (get-num-pages query-str section area)
         page-range (page-count->page-seq page-count)]
-    (-> (pmap (fn [page-number]
-                (let [url  (page+area+section+query->url
-                            page-number area section query-str)
-                      page (u/fetch-url url)]
-                  (page+area->item-map page area)))
-              page-range)
-        concat
-        first)))
+    (mapcat (fn [page-number]
+              (let [url (page+area+section+query->url
+                         page-number area section query-str)]
+                (url+area->item-map url area)))
+            page-range)))
 
 (def section-map
   {:community "ccc"
