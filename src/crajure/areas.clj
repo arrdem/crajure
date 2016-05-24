@@ -2,8 +2,6 @@
   (:require [net.cgrand.enlive-html :as html]
             [crajure.util :as u]))
 
-(defonce area-atom (atom #{}))
-
 (defn generate-areas []
   (->> (html/select
         (u/fetch-url "https://www.craigslist.org/about/sites")
