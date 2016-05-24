@@ -86,21 +86,14 @@
 (defn cl-item-seq [area section query-str]
   (let [page-count (get-num-pages query-str section area)
         page-range (page-count->page-seq page-count)]
-    (println {:count page-count :range page-range})
     (-> (pmap (fn [page-number]
-                (locking *out*
-                  (println query-str section area page-number)
-                  (let [url  (page+area+section+query->url
-                              page-number area section query-str)
-                        page (u/fetch-url url)
-                        res  (page+area->item-map page area)]
-                    (if-not page
-                      (println "Warning: didn't get anything back for" url)
-                      (println "[dbg]" url))
-                    res)))
-              page-range)
-        concat
-        first)))
+                (let [url  (page+area+section+query->url
+                            page-number area section query-str)
+                      page (u/fetch-url url)]
+                  (page+area->item-map page area))))
+        page-range)
+    concat
+    first)))
 
 (def section-map
   {:community "ccc"
