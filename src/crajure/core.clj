@@ -93,7 +93,7 @@
                   (page+area->item-map page area))))
         page-range)
     concat
-    first)))
+    first))
 
 (def section-map
   {:community "ccc"
