@@ -41,11 +41,11 @@
        (catch Exception e 0)))
 
 (defn page->prices [page]
-  (->> (html/select page [:.price])
+  (->> (html/select page [:span.price])
        (map (comp u/dollar-str->int first :content))))
 
 (defn page->titles [page]
-  (->> (html/select page [:span.pl :a])
+  (->> (html/select page [:span.pl :a :span])
        (map (comp first :content))))
 
 (defn page->dates [page]
@@ -63,17 +63,12 @@
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(defn page->categories [page]
-  (->> (html/select page [:span.l2 :a.gc])
-       (map (comp first :content))))
-
-(defn ->item-map [area price title date item-url region category]
-  {:price price
-   :title title
-   :date date
-   :region region
-   :item-url item-url
-   :category category})
+(defn ->item-map [area price title date item-url region]
+  {:price    price
+   :title    title
+   :date     date
+   :region   region
+   :item-url item-url})
 
 (defn page+area->item-map [page area]
   (map ->item-map
@@ -82,8 +77,7 @@
        (page->titles page)
        (page->dates page)
        (page->item-urls page area)
-       (page->regions page)
-       (page->categories page)))
+       (page->regions page)))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
@@ -92,15 +86,21 @@
 (defn cl-item-seq [area section query-str]
   (let [page-count (get-num-pages query-str section area)
         page-range (page-count->page-seq page-count)]
-    (->
-     (pmap (fn [page-number]
-             (let [url (page+area+section+query->url
-                        page-number area section query-str)
-                   page (u/fetch-url url)]
-               (page+area->item-map page area)))
-           page-range)
-     concat
-     first)))
+    (println {:count page-count :range page-range})
+    (-> (pmap (fn [page-number]
+                (locking *out*
+                  (println query-str section area page-number)
+                  (let [url  (page+area+section+query->url
+                              page-number area section query-str)
+                        page (u/fetch-url url)
+                        res  (page+area->item-map page area)]
+                    (if-not page
+                      (println "Warning: didn't get anything back for" url)
+                      (println "[dbg]" url))
+                    res)))
+              page-range)
+        concat
+        first)))
 
 (def section-map
   {:community "ccc"
@@ -129,17 +129,15 @@
 (defn query-cl
   "where query map contains a map of
   :query - a string like \"fixie bikes\"
-  :area - a keyword like :sfbay that is an official cl area
-  ;;      btw, can use :all for every area
-  :section - a key representing a section of cl, i.e. :for-sale
-  ;;         btw, can use :all for every section.
+  :area - a keyword like :sfbay that is an official cl area or :all for every area
+  :section - a key representing a section of cl, i.e. :for-sale or :all for every section.
   "
   ([query area section]
    (query-cl {:query query :area area :section section}))
   ([{:keys [query area section]}]
-   (let [terms (search-str->query-str query)
+   (let [terms       (search-str->query-str query)
          section-seq (u/->flat-seq (get-section-code section))
-         area-seq (u/->flat-seq (get-area-code area))]
+         area-seq    (u/->flat-seq (get-area-code area))]
      (or (apply concat
                 (for [a area-seq
                       s section-seq]
