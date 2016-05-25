@@ -28,11 +28,11 @@
   (spit (url->f url) data))
 
 (defn fetch-url [url & properties]
-  (or (when (.endsWith url ".html")
+  (or (when-not (.contains url "?")
         (some-> (cache-fetch-url url)
                 (html/html-resource)))
       (let [res (apply fetch-url* url properties)]
-        (when (.endsWith url ".html")
+        (when-not (.contains url "?")
           (let [sw (java.io.StringWriter.)]
             (io/copy res sw)
             (cache-put-url url (.toString sw))))
