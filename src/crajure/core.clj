@@ -6,19 +6,19 @@
 
 (defn page+area+section+query->url [page-str area-str section-str query-str]
   (apply str
-         (replace {:area area-str
+         (replace {:area    area-str
                    :section section-str
-                   :page page-str
-                   :query query-str}
+                   :page    page-str
+                   :query   query-str}
                   ["http://" :area ".craigslist.org/search/" :section "?s="
                    :page "&query=" :query "&sort=pricedsc"])))
 
 (defn area+section+query->url [area-str section-str query-str]
   (apply str
-         (replace {:area area-str
+         (replace {:area    area-str
                    :section section-str
-                   :page "000"
-                   :query query-str}
+                   :page    "000"
+                   :query   query-str}
                   ["http://" :area ".craigslist.org/search/" :section "?s="
                    :page "&query=" :query "&sort=pricedsc"])))
 
@@ -63,15 +63,11 @@
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(def
-  ^{:arglists '([url])}
-  url->preview
-  (memoize
-   (fn [url]
-     (let [page (u/fetch-url url)]
-       (->> (html/select page [:div.slide.first :img])
-            first
-            :attrs :src)))))
+(defn url->preview [url]
+  (let [page (u/fetch-url url)]
+    (->> (html/select page [:div.slide.first :img])
+         first
+         :attrs :src)))
 
 (defn page->previews [page area]
   (map url->preview (page->item-urls page area)))
@@ -84,20 +80,16 @@
    :region  (.trim ^String region)
    :url     (.trim ^String item-url)})
 
-(def
-  ^{:arglists '([url area])}
-  url+area->item-map
-  (memoize
-   (fn [url area]
-     (let [page (u/fetch-url url)]
-       (map ->item-map
-            (repeat area)
-            (page->prices page)
-            (page->titles page)
-            (page->previews page area)
-            (page->dates page)
-            (page->item-urls page area)
-            (page->regions page))))))
+(defn url+area->item-map [url area]
+  (let [page (u/fetch-url url)]
+    (map ->item-map
+         (repeat area)
+         (page->prices page)
+         (page->titles page)
+         (page->previews page area)
+         (page->dates page)
+         (page->item-urls page area)
+         (page->regions page))))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
