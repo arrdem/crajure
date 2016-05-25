@@ -41,25 +41,25 @@
        (catch Exception e 0)))
 
 (defn page->prices [page]
-  (->> (html/select page [:span.price])
+  (->> (html/select page [:span.txt :span.price])
        (map (comp u/dollar-str->int first :content))))
 
 (defn page->titles [page]
-  (->> (html/select page [:span.pl :a :span])
+  (->> (html/select page [:span.txt :span.pl :a :span])
        (map (comp first :content))))
 
 (defn page->dates [page]
-  (->> (html/select page [:time])
+  (->> (html/select page [:span.txt :time])
        (map (comp :datetime :attrs))))
 
 (defn page->item-urls [page area]
-  (->> (html/select page [:span.pl :a])
+  (->> (html/select page [:span.txt :span.pl :a])
        (map (comp :href :attrs))
        (map (fn [u] (str "http://" area
                         ".craigslist.org" u)))))
 
 (defn page->regions [page]
-  (->> (html/select page [:span.pnr :small])
+  (->> (html/select page [:span.txt :span.pnr :small])
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
