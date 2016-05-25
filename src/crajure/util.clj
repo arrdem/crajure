@@ -47,8 +47,9 @@
             rest
             (apply str)
             read-string)
-       (catch Exception e (str "dollar-str->int got: "
-                               x-dollars ", not a dollar amount."))))
+       (catch Exception e
+         (str "dollar-str->int got: "
+              x-dollars ", not a dollar amount."))))
 
 (defn round-to-nearest [to from]
   (let [add (/ to 2)
