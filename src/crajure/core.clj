@@ -86,8 +86,13 @@
      (let [page (u/fetch-url url)]
        [(page->preview page) (page->address page)]))))
 
-(def trim (fnil str/trim ""))
-(def lower (fnil str/lower-case ""))
+(defn trim [o]
+  (when o
+    (str/trim o)))
+
+(defn lower [o]
+  (when o
+    (str/lower-case o)))
 
 (defn ->item-map [area price title preview address date item-url region]
   {:price   price
