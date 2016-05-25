@@ -4,23 +4,28 @@
             [crajure.util :as u]
             [crajure.areas :as a]))
 
-(defn page+area+section+query->url [page-str area-str section-str query-str]
-  (apply str
-         (replace {:area    area-str
-                   :section section-str
-                   :page    page-str
-                   :query   query-str}
-                  ["http://" :area ".craigslist.org/search/" :section "?s="
-                   :page "&query=" :query "&sort=pricedsc"])))
+(def section-map
+  {:community/all      "ccc"
+   :events/all         "eee"
+   :for-sale/all       "sss"
+   :gigs/all           "ggg"
+   :housing/all        "hhh"
+   :housing/apartments "apa"
+   :housing/office     "off"
+   :housing/sublets    "sub"
+   :housing/rooms      "roo"
+   :jobs/all           "jjj"
+   :personals/all      "ppp"
+   :resumes/all        "rrr"
+   :services/all       "bbb"
+   :all                ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
 
-(defn area+section+query->url [area-str section-str query-str]
-  (apply str
-         (replace {:area    area-str
-                   :section section-str
-                   :page    "000"
-                   :query   query-str}
-                  ["http://" :area ".craigslist.org/search/" :section "?s="
-                   :page "&query=" :query "&sort=pricedsc"])))
+(defn make-url [{:keys [page area section query price/min price/max]
+                 :or   {page 0}}]
+  (format "http://%s.craigslist.org/search/%s?s=%s&query=%s&sort=pricedsc%s"
+          area (get section-map section section) page query
+          (str (when min (format "&min_price=%s" min))
+               (when max (format "&max_price=%s" max)))))
 
 (defn search-str->query-str [search-str]
   (str/replace search-str " " "%20"))
@@ -28,9 +33,8 @@
 (defn item-count->page-count [num-selected-string]
   (-> num-selected-string read-string (/ 100) int inc))
 
-(defn get-num-pages [query-str section area]
-  (try (let [url                (-> (area+section+query->url area section query-str)
-                                    (str/replace "s=__PAGE_NUM__&" ""))
+(defn get-num-pages [{:keys [section area] :as query}]
+  (try (let [url                (make-url query)
              page               (u/fetch-url url)
              num-selected-large (-> (html/select page [:a.totalcount])
                                     first :content first)
@@ -137,29 +141,13 @@
   (map #(-> % (* 100) str)
        (range 0 page-count)))
 
-(defn cl-item-seq [area section query-str]
-  (let [page-count (get-num-pages query-str section area)
+(defn cl-item-seq [{:keys [area] :as query}]
+  (let [page-count (get-num-pages query)
         page-range (page-count->page-seq page-count)]
     (mapcat (fn [page-number]
-              (let [url (page+area+section+query->url page-number area section query-str)]
+              (let [url (make-url (assoc query :page page-number))]
                 (url+area->items url area)))
             page-range)))
-
-(def section-map
-  {:community/all      "ccc"
-   :events/all         "eee"
-   :for-sale/all       "sss"
-   :gigs/all           "ggg"
-   :housing/all        "hhh"
-   :housing/apartments "apa"
-   :housing/office     "off"
-   :housing/sublets    "sub"
-   :housing/rooms      "roo"
-   :jobs/all           "jjj"
-   :personals/all      "ppp"
-   :resumes/all        "rrr"
-   :services/all       "bbb"
-   :all                ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
 
 (defn get-section-code
   [section-key]
@@ -186,12 +174,12 @@
    (query-cl {:query   query
               :area    area
               :section section}))
-  ([{:keys [query area section]}]
-   (let [terms       (search-str->query-str query)
+  ([{:keys [query area section] :as q}]
+   (let [q           (update q :query search-str->query-str)
          section-seq (u/->flat-seq (get-section-code section))
          area-seq    (u/->flat-seq (get-area-code area))]
      (or (apply concat
                 (for [a area-seq
                       s section-seq]
-                  (cl-item-seq a s terms)))
+                  (cl-item-seq (assoc q :area a :section s))))
          []))))
