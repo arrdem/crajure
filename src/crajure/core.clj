@@ -103,7 +103,7 @@
    :region  (lower (trim region))
    :url     (trim item-url)})
 
-(def url+area->items
+(defonce url+area->items
   (memoize
    (fn [url area]
      (let [page (u/fetch-url url)]
