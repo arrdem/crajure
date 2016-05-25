@@ -85,11 +85,23 @@
        (remove empty?)
        (apply str)))
 
-(defonce url->preview+address
+(defn page->reply [area page]
+  (let [reply-url  (->> (html/select page [:a#replylink])
+                        (first)
+                        :attrs
+                        :href
+                        (#(format "http://%s.craigslist.org/%s" area %)))
+        reply-page (u/fetch-url reply-url)]
+    (->> (html/select reply-page [:ul.pad :li :a])
+         first :content (apply str) str/trim (str "mailto:"))))
+
+(defonce area+url->preview+address+reply
   (memoize
-   (fn [url]
+   (fn [area url]
      (let [page (u/fetch-url url)]
-       [(page->preview page) (page->address page)]))))
+       [(page->preview page)
+        (page->address page)
+        (page->reply area page)]))))
 
 (defn trim [o]
   (when o
@@ -99,20 +111,21 @@
   (when o
     (str/lower-case o)))
 
-(defn ->item-map [area price title preview address date item-url region]
+(defn ->item-map [area price title preview address date item-url region reply]
   {:price   price
    :title   (trim title)
    :preview (trim preview)
    :address (trim address)
    :date    (trim date)
    :region  (lower (trim region))
-   :url     (trim item-url)})
+   :url     (trim item-url)
+   :reply   (trim reply)})
 
 (defonce fragment->item
   (memoize
    (fn [area f]
-     (let [url               (fragment->item-url f area)
-           [preview address] (url->preview+address url)]
+     (let [url                     (fragment->item-url f area)
+           [preview address reply] (area+url->preview+address+reply area url)]
        (->item-map
         area
         (fragment->price f)
@@ -121,7 +134,8 @@
         address
         (fragment->date f)
         url
-        (fragment->region f))))))
+        (fragment->region f)
+        reply)))))
 
 (defn url+area->items [url area]
   (let [page (u/fetch-url url)]
