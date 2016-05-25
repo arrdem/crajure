@@ -63,11 +63,13 @@
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(defn url->preview [url]
-  (let [page (u/fetch-url url)]
-    (->> (html/select page [:div.slide.first :img])
-         first
-         :attrs :src)))
+(def url->preview
+  (memoize
+   (fn [url]
+     (let [page (u/fetch-url url)]
+       (->> (html/select page [:div.slide.first :img])
+            first
+            :attrs :src)))))
 
 (defn page->previews [page area]
   (map url->preview (page->item-urls page area)))
