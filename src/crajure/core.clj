@@ -173,6 +173,9 @@
     code
     (throw (Exception. (str "Invalid Area Code, " area-key)))))
 
+;; FIXME:
+;; - add :price/min
+;; - add :price/max
 (defn query-cl
   "where query map contains a map of
   :query - a string like \"fixie bikes\"
