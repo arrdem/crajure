@@ -78,7 +78,12 @@
 
 (defn page->address [page]
   (->> (html/select page [:.mapaddress])
-       first :content (apply str)))
+       first
+       :content
+       (remove map?)
+       (map str/trim)
+       (remove empty?)
+       (apply str)))
 
 (defonce url->preview+address
   (memoize
