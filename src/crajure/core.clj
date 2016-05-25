@@ -29,14 +29,14 @@
   (-> num-selected-string read-string (/ 100) int inc))
 
 (defn get-num-pages [query-str section area]
-  (try (let [url (-> (area+section+query->url area section query-str)
-                     (str/replace "s=__PAGE_NUM__&" ""))
-             page (u/fetch-url url)
+  (try (let [url                (-> (area+section+query->url area section query-str)
+                                    (str/replace "s=__PAGE_NUM__&" ""))
+             page               (u/fetch-url url)
              num-selected-large (-> (html/select page [:a.totalcount])
                                     first :content first)
-             num-selected (or num-selected-large
-                              (-> (html/select page [:span.button.pagenum])
-                                  html/texts first (str/split #" ") last))]
+             num-selected       (or num-selected-large
+                                    (-> (html/select page [:span.button.pagenum])
+                                        html/texts first (str/split #" ") last))]
          (item-count->page-count num-selected))
        (catch Exception e 0)))
 
@@ -56,21 +56,35 @@
   (->> (html/select page [:span.pl :a])
        (map (comp :href :attrs))
        (map (fn [u] (str "http://" area
-                         ".craigslist.org" u)))))
+                        ".craigslist.org" u)))))
 
 (defn page->regions [page]
   (->> (html/select page [:span.pnr :small])
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(defn ->item-map [area price title date item-url region]
-  {:price    price
-   :title    title
-   :date     date
-   :region   region
-   :item-url item-url})
+(defonce
+  ^{:arglists '([url])}
+  url->preview
+  (memoize
+   (fn [url]
+     (let [page (u/fetch-url url)]
+       (->> (html/select page [:div.slide.first :img])
+            first
+            :attrs :src)))))
 
-(def
+(defn page->previews [page area]
+  (map url->preview (page->item-urls page area)))
+
+(defn ->item-map [area price title preview date item-url region]
+  {:price   price
+   :title   (.trim ^String title)
+   :preview (when preview (.trim ^String preview))
+   :date    (.trim ^String date)
+   :region  (.trim ^String region)
+   :url     (.trim ^String item-url)})
+
+(defonce
   ^{:arglists '([url area])}
   url+area->item-map
   (memoize
@@ -80,6 +94,7 @@
             (repeat area)
             (page->prices page)
             (page->titles page)
+            (page->previews page area)
             (page->dates page)
             (page->item-urls page area)
             (page->regions page))))))
@@ -92,8 +107,7 @@
   (let [page-count (get-num-pages query-str section area)
         page-range (page-count->page-seq page-count)]
     (mapcat (fn [page-number]
-              (let [url (page+area+section+query->url
-                         page-number area section query-str)]
+              (let [url (page+area+section+query->url page-number area section query-str)]
                 (url+area->item-map url area)))
             page-range)))
 
@@ -132,7 +146,9 @@
   :section - a key representing a section of cl, i.e. :for-sale or :all for every section.
   "
   ([query area section]
-   (query-cl {:query query :area area :section section}))
+   (query-cl {:query   query
+              :area    area
+              :section section}))
   ([{:keys [query area section]}]
    (let [terms       (search-str->query-str query)
          section-seq (u/->flat-seq (get-section-code section))
