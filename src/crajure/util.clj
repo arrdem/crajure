@@ -2,7 +2,7 @@
   (:require [net.cgrand.enlive-html :as html]
             [rate-gate.core :refer [rate-limit]]))
 
-(def
+(defonce
   ^{:arglists '([url & properties])}
   fetch-url
   (rate-limit

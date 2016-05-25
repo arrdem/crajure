@@ -86,22 +86,19 @@
        (apply str)))
 
 (defn page->reply [area page]
-  (let [reply-url  (->> (html/select page [:a#replylink])
-                        (first)
-                        :attrs
-                        :href
-                        (#(format "http://%s.craigslist.org/%s" area %)))
-        reply-page (u/fetch-url reply-url)]
-    (->> (html/select reply-page [:ul.pad :li :a])
-         first :content (apply str) str/trim (str "mailto:"))))
+  (if-let [reply-url (some->> (html/select page [:a#replylink])
+                              first :attrs :href
+                              (#(format "http://%s.craigslist.org/%s" area %)))]
+    (->> (html/select (u/fetch-url reply-url) [:ul.pad :li :a])
+         first :content (apply str) str/trim
+         (str "mailto:"))))
 
-(defonce area+url->preview+address+reply
-  (memoize
-   (fn [area url]
-     (let [page (u/fetch-url url)]
-       [(page->preview page)
-        (page->address page)
-        (page->reply area page)]))))
+(defn item-map->preview+address+reply [{:keys [url area] :as item}]
+  (let [page (u/fetch-url url)]
+    (assoc item
+           :preview  (page->preview page)
+           :address  (page->address page)
+           :reply-to (page->reply area page))))
 
 (defn trim [o]
   (when o
@@ -111,31 +108,25 @@
   (when o
     (str/lower-case o)))
 
-(defn ->item-map [area price title preview address date item-url region reply]
-  {:price   price
-   :title   (trim title)
-   :preview (trim preview)
-   :address (trim address)
-   :date    (trim date)
-   :region  (lower (trim region))
-   :url     (trim item-url)
-   :reply   (trim reply)})
+(defn ->item-map [area price title date item-url region]
+  {:price  price
+   :title  (trim title)
+   :date   (trim date)
+   :region (lower (trim region))
+   :area   area
+   :url    (trim item-url)})
 
 (defonce fragment->item
   (memoize
    (fn [area f]
-     (let [url                     (fragment->item-url f area)
-           [preview address reply] (area+url->preview+address+reply area url)]
+     (let [url (fragment->item-url f area)]
        (->item-map
         area
         (fragment->price f)
         (fragment->title f)
-        preview
-        address
         (fragment->date f)
         url
-        (fragment->region f)
-        reply)))))
+        (fragment->region f))))))
 
 (defn url+area->items [url area]
   (let [page (u/fetch-url url)]
