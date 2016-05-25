@@ -13,7 +13,7 @@
                                         "User-Agent" "Mozilla/5.0"))
                                  .getContent)]
        (html/html-resource inputstream)))
-   5 1000))
+   6 1000))
 
 (defn has-page? [url]
   (boolean

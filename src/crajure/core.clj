@@ -40,28 +40,36 @@
          (item-count->page-count num-selected))
        (catch Exception e 0)))
 
-(defn page->prices [page]
-  (->> (html/select page [:span.txt :span.price])
-       (map (comp u/dollar-str->int first :content))))
+(defn list->fragments [page]
+  (html/select page [:p.row :span.txt]))
 
-(defn page->titles [page]
-  (->> (html/select page [:span.txt :span.pl :a :span])
-       (map (comp first :content))))
+(defn fragment->price [f]
+  (->> (html/select f [:span.txt :span.price])
+       (map (comp u/dollar-str->int first :content))
+       first))
 
-(defn page->dates [page]
-  (->> (html/select page [:span.txt :time])
-       (map (comp :datetime :attrs))))
+(defn fragment->title [f]
+  (->> (html/select f [:span.txt :span.pl :a :span])
+       (map (comp first :content))
+       first))
 
-(defn page->item-urls [page area]
-  (->> (html/select page [:span.txt :span.pl :a])
+(defn fragment->date [f]
+  (->> (html/select f [:span.txt :time])
+       (map (comp :datetime :attrs))
+       first))
+
+(defn fragment->item-url [f area]
+  (->> (html/select f [:span.txt :span.pl :a])
        (map (comp :href :attrs))
        (map (fn [u] (str "http://" area
-                        ".craigslist.org" u)))))
+                        ".craigslist.org" u)))
+       first))
 
-(defn page->regions [page]
-  (->> (html/select page [:span.txt :span.pnr :small])
+(defn fragment->region [f]
+  (->> (html/select f [:span.txt :span.pnr :small])
        (map (comp str/trim first :content))
-       (map (fn [s] (apply str (drop-last (rest s)))))))
+       (map (fn [s] (apply str (drop-last (rest s)))))
+       first))
 
 (defn page->preview [page]
   (->> (html/select page [:div.slide.first :img])
@@ -72,32 +80,40 @@
   (->> (html/select page [:.mapaddress])
        :first :content (apply str)))
 
-(defn page->previews+addresses [page area]
-  (for [url  (page->item-urls page area)
-        :let [page (u/fetch-url url)]]
-    [(page->preview page) (page->address page)]))
+(defonce url->preview+address
+  (memoize
+   (fn [url]
+     (let [page (u/fetch-url url)]
+       [(page->preview page) (page->address page)]))))
+
+(def trim (fnil str/trim ""))
+(def lower (fnil str/lower-case ""))
 
 (defn ->item-map [area price title preview address date item-url region]
   {:price   price
-   :title   (.trim ^String title)
-   :preview (when preview (.trim ^String preview))
-   :address (when address (.trim ^String address))
-   :date    (.trim ^String date)
-   :region  (.toLowerCase (.trim ^String region))
-   :url     (.trim ^String item-url)})
+   :title   (trim title)
+   :preview (trim preview)
+   :address (trim address)
+   :date    (trim date)
+   :region  (lower (trim region))
+   :url     (trim item-url)})
 
-(defn url+area->item-map [url area]
-  (let [page (u/fetch-url url)
-        pas  (page->previews+addresses page area)]
-    (map ->item-map
-         (repeat area)
-         (page->prices page)
-         (page->titles page)
-         (map first pas)
-         (map second pas)
-         (page->dates page)
-         (page->item-urls page area)
-         (page->regions page))))
+(def url+area->items
+  (memoize
+   (fn [url area]
+     (let [page (u/fetch-url url)]
+       (for [f    (list->fragments page)
+             :let [url               (fragment->item-url f area)
+                   [preview address] (url->preview+address url)]]
+         (->item-map
+          area
+          (fragment->price f)
+          (fragment->title f)
+          preview
+          address
+          (fragment->date f)
+          url
+          (fragment->region f)))))))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
@@ -108,7 +124,7 @@
         page-range (page-count->page-seq page-count)]
     (mapcat (fn [page-number]
               (let [url (page+area+section+query->url page-number area section query-str)]
-                (url+area->item-map url area)))
+                (url+area->items url area)))
             page-range)))
 
 (def section-map
