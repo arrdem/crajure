@@ -18,6 +18,9 @@ Differences from upstream
 - `:category` key now missing from responses, since due to UI changes in Craigslist it is no longer
   trivial to infer this. It should be able to recover this information from the listing URLs in the
   future.
+- `:item-url` has been renamed to `:url`.
+- `:preview` being the URL for the item's first picture has been added.
+- `:address` being the street address for the item if available has been added.
 
 Usage
 ---
