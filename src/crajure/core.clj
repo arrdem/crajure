@@ -108,22 +108,25 @@
    :region  (lower (trim region))
    :url     (trim item-url)})
 
-(defonce url+area->items
+(defonce fragment->item
   (memoize
-   (fn [url area]
-     (let [page (u/fetch-url url)]
-       (for [f    (list->fragments page)
-             :let [url               (fragment->item-url f area)
-                   [preview address] (url->preview+address url)]]
-         (->item-map
-          area
-          (fragment->price f)
-          (fragment->title f)
-          preview
-          address
-          (fragment->date f)
-          url
-          (fragment->region f)))))))
+   (fn [area f]
+     (let [url               (fragment->item-url f area)
+           [preview address] (url->preview+address url)]
+       (->item-map
+        area
+        (fragment->price f)
+        (fragment->title f)
+        preview
+        address
+        (fragment->date f)
+        url
+        (fragment->region f))))))
+
+(defn url+area->items [url area]
+  (let [page (u/fetch-url url)]
+    (map (partial fragment->item area)
+         (list->fragments page))))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
