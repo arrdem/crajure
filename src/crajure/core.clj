@@ -63,32 +63,38 @@
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(def url->preview
-  (memoize
-   (fn [url]
-     (let [page (u/fetch-url url)]
-       (->> (html/select page [:div.slide.first :img])
-            first
-            :attrs :src)))))
+(defn page->preview [page]
+  (->> (html/select page [:div.slide.first :img])
+       first
+       :attrs :src))
 
-(defn page->previews [page area]
-  (map url->preview (page->item-urls page area)))
+(defn page->address [page]
+  (->> (html/select page [:.mapaddress])
+       :first :content (apply str)))
 
-(defn ->item-map [area price title preview date item-url region]
+(defn page->previews+addresses [page area]
+  (for [url  (page->item-urls page area)
+        :let [page (u/fetch-url url)]]
+    [(page->preview page) (page->address page)]))
+
+(defn ->item-map [area price title preview address date item-url region]
   {:price   price
    :title   (.trim ^String title)
    :preview (when preview (.trim ^String preview))
+   :address (when address (.trim ^String address))
    :date    (.trim ^String date)
-   :region  (.trim ^String region)
+   :region  (.toLowerCase (.trim ^String region))
    :url     (.trim ^String item-url)})
 
 (defn url+area->item-map [url area]
-  (let [page (u/fetch-url url)]
+  (let [page (u/fetch-url url)
+        pas  (page->previews+addresses page area)]
     (map ->item-map
          (repeat area)
          (page->prices page)
          (page->titles page)
-         (page->previews page area)
+         (map first pas)
+         (map second pas)
          (page->dates page)
          (page->item-urls page area)
          (page->regions page))))
