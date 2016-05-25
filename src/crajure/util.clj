@@ -32,11 +32,12 @@
         (some-> (cache-fetch-url url)
                 (html/html-resource)))
       (let [res (apply fetch-url* url properties)]
-        (when-not (.contains url "?")
-          (let [sw (java.io.StringWriter.)]
-            (io/copy res sw)
-            (cache-put-url url (.toString sw))))
-        (fetch-url url))))
+        (if-not (.contains url "?")
+          (do (let [sw (java.io.StringWriter.)]
+                (io/copy res sw)
+                (cache-put-url url (.toString sw)))
+              (fetch-url url))
+          (html/html-resource res)))))
 
 (defn has-page? [url]
   (boolean
