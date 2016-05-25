@@ -63,7 +63,7 @@
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))))
 
-(defonce
+(def
   ^{:arglists '([url])}
   url->preview
   (memoize
@@ -84,7 +84,7 @@
    :region  (.trim ^String region)
    :url     (.trim ^String item-url)})
 
-(defonce
+(def
   ^{:arglists '([url area])}
   url+area->item-map
   (memoize
