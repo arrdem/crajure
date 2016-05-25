@@ -13,7 +13,7 @@
          .openConnection
          (doto (.setRequestProperty "User-Agent" "Mozilla/5.0"))
          .getContent))
-   2 1000))
+   1 1000))
 
 (defn url->f [url]
   (.mkdirs (io/file "cache"))
