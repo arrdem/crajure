@@ -1,4 +1,4 @@
-(defproject me.arrdem/crajure "0.3.0"
+(defproject me.arrdem/crajure "0.3.1"
   :description "An extremely simple interface to scrape craigslist. How you use it may be against their T.O.S."
   :url "http://www.github.com/arrdem/crajure"
   :license {:name "Eclipse Public License"
