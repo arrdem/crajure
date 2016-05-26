@@ -70,8 +70,11 @@
        first))
 
 (defn fragment->region [f]
+  {:post [(string? %)]}
   (->> (html/select f [:span.txt :span.pnr :small])
-       (map (comp str/trim first :content))
+       (map (comp first :content))
+       (remove map?)
+       (map str/trim)
        (map (fn [s] (apply str (drop-last (rest s)))))
        first))
 
@@ -124,13 +127,20 @@
   (memoize
    (fn [area f]
      (let [url (fragment->item-url f area)]
-       (->item-map
-        area
-        (fragment->price f)
-        (fragment->title f)
-        (fragment->date f)
-        url
-        (fragment->region f))))))
+       (try
+         (->item-map
+          area
+          (fragment->price f)
+          (fragment->title f)
+          (fragment->date f)
+          url
+          (fragment->region f))
+         (catch Exception e
+           (throw (ex-info "Failure while loading item!"
+                           {:area area
+                            :f    f
+                            :url  url}
+                           e))))))))
 
 (defn url+area->items [url area]
   (let [page (u/fetch-url url)]

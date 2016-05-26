@@ -10,7 +10,7 @@
        (map #(-> (re-find #"\/\/([a-z]*)" %) second))
        set))
 
-(def areas
+(defonce areas
   (memoize generate-areas))
 
 (defn area-map []
