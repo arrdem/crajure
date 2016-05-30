@@ -88,7 +88,7 @@
 (defn page->reply [area page]
   (if-let [reply-url (some->> (html/select page [:a#replylink])
                               first :attrs :href
-                              (#(format "http://%s.craigslist.org/%s" area %)))]
+                              (#(format "http://%s.craigslist.org%s" area %)))]
     (->> (html/select (u/fetch-url reply-url) [:ul.pad :li :a])
          first :content (apply str) str/trim
          (str "mailto:"))))
