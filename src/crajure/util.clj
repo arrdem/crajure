@@ -26,7 +26,9 @@
     (io/file cached (str (sha256 url) ".html"))))
 
 (defn fetch-cache [url]
-  (slurp (url->file url)))
+  (let [^java.io.File f (url->file url)]
+    (when (.exists f)
+      (slurp f))))
 
 (defn put-cache [url content]
   (spit (url->file url) content))
