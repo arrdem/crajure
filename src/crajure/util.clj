@@ -10,6 +10,7 @@
   fetch-url*
   (rate-limit
    (fn [url & properties]
+     (println "[fetch-url*]" url)
      (let [sw (StringWriter.)]
        (with-open [in (-> (java.net.URL. url)
                           .openConnection
