@@ -1,19 +1,45 @@
 (ns crajure.util
-  (:require [net.cgrand.enlive-html :as html]
-            [rate-gate.core :refer [rate-limit]]))
+  (:require [clojure.java.io :as io]
+            [net.cgrand.enlive-html :as html]
+            [pandect.algo.sha256 :refer [sha256]]
+            [rate-gate.core :refer [rate-limit]])
+  (:import [java.io StringReader StringWriter]))
 
 (defonce
   ^{:arglists '([url & properties])}
-  fetch-url
+  fetch-url*
   (rate-limit
    (fn [url & properties]
-     (with-open [inputstream (-> (java.net.URL. url)
-                                 .openConnection
-                                 (doto (.setRequestProperty
-                                        "User-Agent" "Mozilla/5.0"))
-                                 .getContent)]
-       (html/html-resource inputstream)))
+     (let [sw (StringWriter.)]
+       (with-open [in (-> (java.net.URL. url)
+                          .openConnection
+                          (doto (.setRequestProperty
+                                 "User-Agent" "Mozilla/5.0"))
+                          .getContent)]
+         (io/copy in sw)
+         (.toString sw))))
    2 1000))
+
+(defn url->file [url]
+  (let [cached (io/file "cache")]
+    (.mkdirs cached)
+    (io/file cached (str (sha256 url) ".html"))))
+
+(defn fetch-cache [url]
+  (slurp (url->file url)))
+
+(defn put-cache [url content]
+  (spit (url->file url) content))
+
+(defn fetch-url [url]
+  (html/html-resource
+   (StringReader.
+    (or (when-not (.contains url "?")
+          (fetch-cache url))
+        (let [result (fetch-url* url)]
+          (when-not (.contains url "?")
+            (put-cache url result))
+          result)))))
 
 (defn has-page? [url]
   (boolean
