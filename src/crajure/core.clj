@@ -93,6 +93,12 @@
          first :content (apply str) str/trim
          (str "mailto:"))))
 
+(defn item-map->preview+address [{:keys [url area] :as item}]
+  (let [page (u/fetch-url url)]
+    (assoc item
+           :preview  (page->preview page)
+           :address  (page->address page))))
+
 (defn item-map->preview+address+reply [{:keys [url area] :as item}]
   (let [page (u/fetch-url url)]
     (assoc item
