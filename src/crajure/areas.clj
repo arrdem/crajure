@@ -17,3 +17,8 @@
   (assoc
    (into {} (map (fn [i] [(keyword i) i]) (areas)))
    :all (vec (areas))))
+
+(defn as-areas [area-key]
+  (if-let [code (get (area-map) (keyword area-key))]
+    code
+    (throw (Exception. (str "Invalid Area Code, " area-key)))))

@@ -152,18 +152,6 @@
                 (url+area->items url area)))
             page-range)))
 
-(defn get-section-code
-  [sel]
-  (if-let [sel (c/as-selector sel)]
-    (:path sel)
-    (throw (Exception. (str "Invalid Section Code, " sel)))))
-
-(defn get-area-code
-  [area-key]
-  (if-let [code (get (a/area-map) (keyword area-key))]
-    code
-    (throw (Exception. (str "Invalid Area Code, " area-key)))))
-
 ;; FIXME:
 ;; - add :price/min
 ;; - add :price/max
@@ -179,8 +167,8 @@
               :section section}))
   ([{:keys [query area section]}]
    (let [terms       (search-str->query-str query)
-         section-seq (u/->flat-seq (get-section-code section))
-         area-seq    (u/->flat-seq (get-area-code area))]
+         section-seq (c/as-selectors section)
+         area-seq    (a/as-areas area)]
      (or (apply concat
                 (for [a area-seq
                       s section-seq]
