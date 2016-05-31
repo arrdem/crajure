@@ -3,7 +3,7 @@
             [net.cgrand.enlive-html :as html]
             [pandect.algo.sha256 :refer [sha256]])
   (:import [java.io File StringReader StringWriter]
-           [java.net InetSocketAddress Proxy URL URLConnection]))
+           [java.net InetSocketAddress Proxy Proxy$Type URL URLConnection]))
 
 (def ^:dynamic *proxies*
   nil)
