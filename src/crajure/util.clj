@@ -17,14 +17,14 @@
       ^int (Integer/parseInt port)))))
 
 (defn open-with-proxy ^URLConnection [^URL u]
-  (.openConnection u
-                   ^Proxy (if (and (bound? #'*proxies*)
-                                   (not (empty? *proxies*)))
-                            (let [l (rand-nth *proxies*)
-                                  p (make-proxy l)]
-                              (println "[open-with-proxy] Using proxy:" l)
-                              p)
-                            Proxy/NO_PROXY)))
+  (let [^Proxy p (if (and (bound? #'*proxies*)
+                          (not (empty? *proxies*)))
+                   (let [l (rand-nth *proxies*)
+                         p (make-proxy l)]
+                     (println "[open-with-proxy] Using proxy:" l)
+                     p)
+                   Proxy/NO_PROXY)]
+    (.openConnection u p)))
 
 (defn try-fetch [url]
   (try
