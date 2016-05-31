@@ -1,25 +1,55 @@
 (ns crajure.util
   (:require [clojure.java.io :as io]
             [net.cgrand.enlive-html :as html]
-            [pandect.algo.sha256 :refer [sha256]]
-            [rate-gate.core :refer [rate-limit]])
-  (:import [java.io StringReader StringWriter]))
+            [pandect.algo.sha256 :refer [sha256]])
+  (:import [java.io File StringReader StringWriter]
+           [java.net InetSocketAddress Proxy URL URLConnection]))
 
-(defonce
-  ^{:arglists '([url & properties])}
-  fetch-url*
-  (rate-limit
-   (fn [url & properties]
-     (println "[fetch-url*]" url)
-     (let [sw (StringWriter.)]
-       (with-open [in (-> (java.net.URL. url)
-                          .openConnection
-                          (doto (.setRequestProperty
-                                 "User-Agent" "Mozilla/5.0"))
-                          .getContent)]
-         (io/copy in sw)
-         (.toString sw))))
-   2 1000))
+(def ^:dynamic *proxies*
+  nil)
+
+(defn make-proxy ^Proxy [proxy-str]
+  (let [[_ host port] (re-find #"([\d\.]*):(\d+)" proxy-str)]
+    (Proxy.
+     Proxy$Type/HTTP
+     (InetSocketAddress.
+      ^String host
+      ^int (Integer/parseInt port)))))
+
+(defn open-with-proxy ^URLConnection [^URL u]
+  (.openConnection u
+                   ^Proxy (if (and (bound? #'*proxies*)
+                                   (not (empty? *proxies*)))
+                            (let [l (rand-nth *proxies*)
+                                  p (make-proxy l)]
+                              (println "[open-with-proxy] Using proxy:" l)
+                              p)
+                            Proxy/NO_PROXY)))
+
+(defn try-fetch [url]
+  (try
+    (let [sw (StringWriter.)]
+      (with-open [in (as-> (java.net.URL. ^String url) v
+                       ^URLConnection (open-with-proxy v)
+                       (doto v
+                         (.setRequestProperty "User-Agent" "Mozilla/5.0")
+                         (.setConnectTimeout (* 15 1000))
+                         (.setRequestMethod "GET"))
+                       (.getContent v))]
+        (io/copy ^Reader in ^Writer sw)
+        (.toString sw)))
+    (catch java.io.FileNotFoundException e nil)
+    (catch java.io.IOException e nil)
+    (catch Exception e
+      (println e)
+      nil)))
+
+(defn fetch-url* [url]
+  (println "[fetch-url*]" url)
+  (loop [i 100]
+    (if-not (zero? i)
+      (let [res (try-fetch url)]
+        (if res res (recur (dec i)))))))
 
 (defn url->file [url]
   (let [cached (io/file "cache")]
@@ -27,7 +57,7 @@
     (io/file cached (str (sha256 url) ".html"))))
 
 (defn fetch-cache [url]
-  (let [^java.io.File f (url->file url)]
+  (let [^File f (url->file url)]
     (when (.exists f)
       (slurp f))))
 
@@ -37,10 +67,10 @@
 (defn fetch-url [url]
   (html/html-resource
    (StringReader.
-    (or (when-not (.contains url "?")
+    (or (when-not (.contains ^String url "?")
           (fetch-cache url))
         (let [result (fetch-url* url)]
-          (when-not (.contains url "?")
+          (when-not (.contains ^String url "?")
             (put-cache url result))
           result)))))
 
@@ -57,7 +87,7 @@
                                x-dollars ", not a dollar amount."))))
 
 (defn round-to-nearest [to from]
-  (let [add (/ to 2)
+  (let [add  (/ to 2)
         divd (int (/ (+ add from) to))]
     (* divd to)))
 
