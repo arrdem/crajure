@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [net.cgrand.enlive-html :as html]
             [crajure.util :as u]
-            [crajure.areas :as a]))
+            [crajure.areas :as a]
+            [crajure.categories :as c]))
 
 (defn page+area+section+query->url [page-str area-str section-str query-str]
   (apply str
@@ -151,27 +152,11 @@
                 (url+area->items url area)))
             page-range)))
 
-(def section-map
-  {:community/all      "ccc"
-   :events/all         "eee"
-   :for-sale/all       "sss"
-   :gigs/all           "ggg"
-   :housing/all        "hhh"
-   :housing/apartments "apa"
-   :housing/office     "off"
-   :housing/sublets    "sub"
-   :housing/rooms      "roo"
-   :jobs/all           "jjj"
-   :personals/all      "ppp"
-   :resumes/all        "rrr"
-   :services/all       "bbb"
-   :all                ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
-
 (defn get-section-code
-  [section-key]
-  (if-let [code (get section-map section-key)]
-    code
-    (throw (Exception. (str "Invalid Section Code, " section-key)))))
+  [sel]
+  (if-let [sel (c/as-selector sel)]
+    (:path sel)
+    (throw (Exception. (str "Invalid Section Code, " sel)))))
 
 (defn get-area-code
   [area-key]
