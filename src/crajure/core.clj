@@ -3,25 +3,25 @@
             [net.cgrand.enlive-html :as html]
             [crajure.util :as u]
             [crajure.areas :as a]
-            [crajure.categories :as c]))
+            [crajure.categories :as c])
+  (:import java.net.URLEncoder))
 
-(defn page+area+section+query->url [page-str area-str section-str query-str]
-  (apply str
-         (replace {:area    area-str
-                   :section section-str
-                   :page    page-str
-                   :query   query-str}
-                  ["http://" :area ".craigslist.org/search/" :section "?s="
-                   :page "&query=" :query "&sort=pricedsc"])))
+(defn url-encode
+  [string]
+  (some-> string str
+          (URLEncoder/encode "UTF-8")
+          (.replace "+" "%20")))
 
-(defn area+section+query->url [area-str section-str query-str]
-  (apply str
-         (replace {:area    area-str
-                   :section section-str
-                   :page    "000"
-                   :query   query-str}
-                  ["http://" :area ".craigslist.org/search/" :section "?s="
-                   :page "&query=" :query "&sort=pricedsc"])))
+(defn format-params [params]
+  (->> (for [[k v] params]
+         (str k "="
+              (if-not (= k "query")
+                (url-encode v) v)))
+       (str/join "&")))
+
+(defn q->search-url [{:keys [area section params] :as q}]
+  (format "http://%s.craigslist.org/search/%s?%s"
+          area section (format-params params)))
 
 (defn search-str->query-str [search-str]
   (str/replace search-str " " "%20"))
@@ -29,9 +29,8 @@
 (defn item-count->page-count [num-selected-string]
   (-> num-selected-string read-string (/ 100) int inc))
 
-(defn get-num-pages [query-str section area]
-  (try (let [url                (-> (area+section+query->url area section query-str)
-                                    (str/replace "s=__PAGE_NUM__&" ""))
+(defn get-num-pages [{:keys [section area] :as q}]
+  (try (let [url                (q->search-url q)
              page               (u/fetch-url url)
              num-selected-large (-> (html/select page [:a.totalcount])
                                     first :content first)
@@ -100,13 +99,6 @@
            :preview  (page->preview page)
            :address  (page->address page))))
 
-(defn item-map->preview+address+reply [{:keys [url area] :as item}]
-  (let [page (u/fetch-url url)]
-    (assoc item
-           :preview  (page->preview page)
-           :address  (page->address page)
-           :reply-to (page->reply area page))))
-
 (defn trim [o]
   (when o
     (str/trim o)))
@@ -144,17 +136,14 @@
   (map #(-> % (* 100) str)
        (range 0 page-count)))
 
-(defn cl-item-seq [area section query-str]
-  (let [page-count (get-num-pages query-str section area)
+(defn cl-item-seq [{:keys [section area] :as q}]
+  (let [page-count (get-num-pages q)
         page-range (page-count->page-seq page-count)]
     (mapcat (fn [page-number]
-              (let [url (page+area+section+query->url page-number area section query-str)]
+              (let [url (q->search-url (assoc-in q [:params "s"] page-number))]
                 (url+area->items url area)))
             page-range)))
 
-;; FIXME:
-;; - add :price/min
-;; - add :price/max
 (defn query-cl
   "where query map contains a map of
   :query - a string like \"fixie bikes\"
@@ -164,13 +153,19 @@
   ([query area section]
    (query-cl {:query   query
               :area    area
-              :section section}))
-  ([{:keys [query area section]}]
+              :section section
+              :params  {}}))
+  ([{:keys [query area section params] :as q}]
    (let [terms       (search-str->query-str query)
          section-seq (c/as-selectors section)
          area-seq    (a/as-areas area)]
      (or (apply concat
                 (for [a area-seq
                       s section-seq]
-                  (cl-item-seq a s terms)))
+                  (cl-item-seq
+                   (-> (assoc q
+                              :area a
+                              :section (:path s))
+                       (assoc-in [:params "query"] terms)
+                       (update-in [:params "sort"] #(or % "pricedsc"))))))
          []))))
