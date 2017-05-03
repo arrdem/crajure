@@ -6,50 +6,86 @@
            [java.net InetSocketAddress Proxy Proxy$Type URL URLConnection]))
 
 (def ^:dynamic *proxies*
+  "If bound, an atom of the form
+
+  {:candidates (set proxy-str)
+   :usable     (set proxy-str)
+   :unusable   (set proxy-str)}"
   nil)
 
-(defn make-proxy ^Proxy [proxy-str]
-  (let [[_ host port] (re-find #"([\d\.]*):(\d+)" proxy-str)]
-    (Proxy.
-     Proxy$Type/HTTP
-     (InetSocketAddress.
-      ^String host
-      ^int (Integer/parseInt port)))))
+(defn choose-proxy [struct]
+  (let [{:keys [candidates usable]} struct]
+    (if candidates
+      (rand-nth (vec candidates))
+      (rand-nth (vec usable)))))
 
-(defn open-with-proxy ^URLConnection [^URL u]
-  (let [^Proxy p (if (and (bound? #'*proxies*)
-                          (not (empty? *proxies*)))
-                   (let [l (rand-nth *proxies*)
-                         p (make-proxy l)]
-                     (println "[open-with-proxy] Using proxy:" l)
-                     p)
-                   Proxy/NO_PROXY)]
-    (.openConnection u p)))
+(defn mark-proxy-successful [state proxy]
+  (-> state
+      (update :candidates disj proxy)
+      (update :usable (fnil conj #{}) proxy)))
+
+(defn mark-proxy-failed [state proxy]
+  (-> state
+      (update :candidates disj proxy)
+      (update :unusable (fnil conj #{}) proxy)))
+
+(defn make-proxy ^Proxy [proxy-str]
+  (if proxy-str
+    (let [[_ host port] (re-find #"([\d\.]*):(\d+)" proxy-str)]
+      (Proxy.
+       Proxy$Type/HTTP
+       (InetSocketAddress.
+        ^String host
+        ^int (Integer/parseInt port))))
+    Proxy/NO_PROXY))
 
 (defn try-fetch [url]
-  (try
-    (let [sw (StringWriter.)]
-      (with-open [in (as-> (java.net.URL. ^String url) v
-                       ^URLConnection (open-with-proxy v)
+  (let [l  (some->> *proxies* deref choose-proxy)
+        p  (make-proxy l)
+        sw (StringWriter.)]
+    (try
+      (loop [url   url
+             limit 5]
+        (if-not (zero? limit)
+          (let [conn (as-> (java.net.URL. ^String url) v
+                       ^URLConnection (.openConnection v p)
                        (doto v
-                         (.setRequestProperty "User-Agent" "Mozilla/5.0")
-                         (.setConnectTimeout (* 15 1000))
-                         (.setRequestMethod "GET"))
-                       (.getContent v))]
-        (io/copy ^Reader in ^Writer sw)
-        (.toString sw)))
-    (catch java.io.FileNotFoundException e nil)
-    (catch java.io.IOException e nil)
-    (catch Exception e
-      (println e)
-      nil)))
+                         (.setRequestProperty "User-Agent" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36")
+                         (.setConnectTimeout (* 5 1000))
+                         (.setRequestProperty "Content-Type" "text/html")
+                         (.setRequestMethod "GET")))]
+            (if (= 301 (.getResponseCode conn))
+              (recur (.getHeaderField conn "Location") (dec limit))
+              (do (io/copy ^Reader (.getInputStream conn) ^Writer sw)
+                  (.toString sw))))
+          (throw (Exception. "Ran out of redirects!"))))
+
+      (catch java.net.SocketTimeoutException e
+        ;; the proxy if any was bad
+        (when l (swap! *proxies* mark-proxy-failed l))
+        nil)
+      
+      (catch java.io.IOException e
+        ;; case of 403
+        (when l (swap! *proxies* mark-proxy-failed l))
+        nil)
+      
+      (catch Exception e
+        (println e)
+        nil))))
 
 (defn fetch-url* [url]
   (println "[fetch-url*]" url)
   (loop [i 100]
     (if-not (zero? i)
       (let [res (try-fetch url)]
-        (if res res (recur (dec i)))))))
+        (if res
+          (if (or (.contains res "/wrproxy/authenticate")
+                  (.contains res "Data Limit Reached"))
+            (do (println "[fetch-url*] Failproxy")
+                (recur (dec i)))
+            res)
+          (recur (dec i)))))))
 
 (defn url->file [url]
   (let [cached (io/file "cache")]

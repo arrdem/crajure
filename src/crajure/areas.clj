@@ -15,7 +15,7 @@
 
 (defn area-map []
   (assoc
-   (into {} (map (fn [i] [(keyword i) i]) (areas)))
+   (into {} (map (fn [i] [(keyword i) [i]]) (areas)))
    :all (vec (areas))))
 
 (defn as-areas [area-key]

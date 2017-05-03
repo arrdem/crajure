@@ -62,7 +62,7 @@
   (->> (html/select f [:span.txt :span.pl :a])
        (map (comp :href :attrs))
        (map (fn [u] (str "http://" area
-                        ".craigslist.org" u)))
+                         ".craigslist.org" u)))
        first))
 
 (defn fragment->region [f]
@@ -159,13 +159,13 @@
    (let [terms       (search-str->query-str query)
          section-seq (c/as-selectors section)
          area-seq    (a/as-areas area)]
-     (or (apply concat
-                (for [a area-seq
-                      s section-seq]
-                  (cl-item-seq
-                   (-> (assoc q
-                              :area a
-                              :section (:path s))
-                       (assoc-in [:params "query"] terms)
-                       (update-in [:params "sort"] #(or % "pricedsc"))))))
+     (or (for [a       area-seq
+               s       section-seq
+               cl-item (cl-item-seq
+                        (-> (assoc q
+                                   :area a
+                                   :section (:path s))
+                            (assoc-in [:params "query"] terms)
+                            (update-in [:params "sort"] #(or % "pricedsc"))))]
+           cl-item)
          []))))
