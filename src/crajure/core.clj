@@ -30,32 +30,32 @@
        (catch Exception e 0)))
 
 (defn list->fragments [page]
-  (html/select page [:p.row :span.txt]))
+  (html/select page [:p.result-info]))
 
 (defn fragment->price [f]
-  (->> (html/select f [:span.txt :span.price])
+  (->> (html/select f [:span.result-price])
        (map (comp u/dollar-str->int first :content))
        first))
 
 (defn fragment->title [f]
-  (->> (html/select f [:span.txt :span.pl :a :span])
+  (->> (html/select f [:a.result-title])
        (map (comp first :content))
        first))
 
 (defn fragment->date [f]
-  (->> (html/select f [:span.txt :time])
+  (->> (html/select f [:time.result-date])
        (map (comp :datetime :attrs))
        first))
 
 (defn fragment->item-url [f area]
-  (->> (html/select f [:span.txt :span.pl :a])
+  (->> (html/select f [:a.result-title])
        (map (comp :href :attrs))
        (map (fn [u] (str "http://" area
                          ".craigslist.org" u)))
        first))
 
 (defn fragment->region [f]
-  (->> (html/select f [:span.txt :span.pnr :small])
+  (->> (html/select f [:a.result-hood])
        (map (comp str/trim first :content))
        (map (fn [s] (apply str (drop-last (rest s)))))
        first))
