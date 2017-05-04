@@ -17,7 +17,9 @@
   (-> num-selected-string read-string (/ 100) int inc))
 
 (defn get-num-pages [{:keys [section area] :as q}]
-  (try (let [url                (q->search-url q)
+  (try (let [url                (-> q
+                                    (assoc-in [:params "s"] 0)
+                                    (q->search-url))
              page               (u/fetch-url url)
              num-selected-large (-> (html/select page [:a.totalcount])
                                     first :content first)
