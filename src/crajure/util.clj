@@ -115,15 +115,17 @@
 (defn put-cache [url content]
   (spit (url->file url) content))
 
-(defn fetch-url [url]
-  (html/html-resource
-   (StringReader.
-    (or (when-not (.contains ^String url "?")
-          (fetch-cache url))
-        (let [result (fetch-url* url)]
-          (when-not (.contains ^String url "?")
-            (put-cache url result))
-          result)))))
+(defonce fetch-url
+  (memoize
+   (fn [url]
+     (html/html-resource
+      (StringReader.
+       (or (when-not (.contains ^String url "?")
+             (fetch-cache url))
+           (let [result (fetch-url* url)]
+             (when-not (.contains ^String url "?")
+               (put-cache url result))
+             result)))))))
 
 (defn has-page? [url]
   (boolean
