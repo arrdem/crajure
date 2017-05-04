@@ -1,6 +1,7 @@
 (ns crajure.util
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
+            [rate-gate.core :refer [rate-limit]]
             [net.cgrand.enlive-html :as html]
             [pandect.algo.sha256 :refer [sha256]])
   (:import [java.io File StringReader StringWriter]
@@ -89,18 +90,21 @@
         (println e)
         nil))))
 
-(defn fetch-url* [url]
-  (println "[fetch-url*]" url)
-  (loop [i 100]
-    (if-not (zero? i)
-      (let [res (try-fetch url)]
-        (if res
-          (if (or (.contains res "/wrproxy/authenticate")
-                  (.contains res "Data Limit Reached"))
-            (do (println "[fetch-url*] Failproxy")
-                (recur (dec i)))
-            res)
-          (recur (dec i)))))))
+(def fetch-url*
+  (rate-limit
+   (fn [url]
+     (println "[fetch-url*]" url)
+     (loop [i 100]
+       (if-not (zero? i)
+         (let [res (try-fetch url)]
+           (if res
+             (if (or (.contains res "/wrproxy/authenticate")
+                     (.contains res "Data Limit Reached"))
+               (do (println "[fetch-url*] Failproxy")
+                   (recur (dec i)))
+               res)
+             (recur (dec i)))))))
+   1 (* 5 1000)))
 
 (defn url->file [url]
   (let [cached (io/file "cache")]
