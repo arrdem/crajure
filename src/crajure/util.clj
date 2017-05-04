@@ -57,6 +57,7 @@
   (let [l  (some->> *proxies* deref choose-proxy)
         p  (make-proxy l)
         sw (StringWriter.)]
+    (printf "[try-fetch] %-30s %s\n" l url)
     (try
       (loop [url   url
              limit 5]
