@@ -1,23 +1,10 @@
 (ns crajure.core
   (:require [clojure.string :as str]
-            [net.cgrand.enlive-html :as html]
-            [crajure.util :as u]
-            [crajure.areas :as a]
-            [crajure.categories :as c])
-  (:import java.net.URLEncoder))
-
-(defn url-encode
-  [string]
-  (some-> string str
-          (URLEncoder/encode "UTF-8")
-          (.replace "+" "%20")))
-
-(defn format-params [params]
-  (->> (for [[k v] params]
-         (str k "="
-              (if-not (= k "query")
-                (url-encode v) v)))
-       (str/join "&")))
+            [crajure
+             [areas :as a]
+             [categories :as c]
+             [util :as u :refer [format-params]]]
+            [net.cgrand.enlive-html :as html]))
 
 (defn q->search-url [{:keys [area section params] :as q}]
   (format "http://%s.craigslist.org/search/%s?%s"

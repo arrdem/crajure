@@ -1,9 +1,23 @@
 (ns crajure.util
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [net.cgrand.enlive-html :as html]
             [pandect.algo.sha256 :refer [sha256]])
   (:import [java.io File StringReader StringWriter]
-           [java.net InetSocketAddress Proxy Proxy$Type URL URLConnection]))
+           [java.net URLEncoder InetSocketAddress Proxy Proxy$Type URL URLConnection]))
+
+(defn url-encode
+  [string]
+  (some-> string str
+          (URLEncoder/encode "UTF-8")
+          (.replace "+" "%20")))
+
+(defn format-params [params]
+  (->> (for [[k v] params]
+         (str k "="
+              (if-not (= k "query")
+                (url-encode v) v)))
+       (str/join "&")))
 
 (def ^:dynamic *proxies*
   "If bound, an atom of the form
