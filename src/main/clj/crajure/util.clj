@@ -2,14 +2,15 @@
   (:require [net.cgrand.enlive-html :as html]
             [rate-gate.core :refer [rate-limit]]
             [pandect.algo.sha256 :as sha]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io])
+  (:import java.net.URL))
 
 (defonce
   ^{:arglists '([url & properties])}
   fetch-url*
   (rate-limit
    (fn [url & properties]
-     (-> (java.net.URL. url)
+     (-> (URL. url)
          .openConnection
          (doto (.setRequestProperty "User-Agent" "Mozilla/5.0"))
          .getContent))
@@ -38,10 +39,6 @@
                 (cache-put-url url (.toString sw)))
               (fetch-url url))
           (html/html-resource res)))))
-
-(defn has-page? [url]
-  (boolean
-   (fetch-url url)))
 
 (defn dollar-str->int [x-dollars]
   (try (->> x-dollars

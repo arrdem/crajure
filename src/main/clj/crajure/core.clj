@@ -1,4 +1,8 @@
 (ns crajure.core
+  "A tool kit for crawling Craigslist."
+  {:authors ["Reid \"arrdem\" McKenzie <me@arrdem.com>"
+             "Bryan Maass <bryan.maass@gmail.com>"],
+   :license "Eclipse Public License 1.0"}
   (:require [clojure.string :as str]
             [net.cgrand.enlive-html :as html]
             [crajure.util :as u]
