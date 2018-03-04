@@ -4,9 +4,13 @@
              "Bryan Maass <bryan.maass@gmail.com>"],
    :license "Eclipse Public License 1.0"}
   (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [net.cgrand.enlive-html :as html]
+            [clj-http.util :as http-util]
+            [beetle.core :as beetle]
+            [crajure.areas :as a]
             [crajure.util :as u]
-            [crajure.areas :as a]))
+            [crajure.http :as http]))
 
 (def section-map
   {:community/all      "ccc"
@@ -24,96 +28,94 @@
    :services/all       "bbb"
    :all                ["ppp" "ccc" "eee" "hhh" "sss" "rrr" "jjj" "ggg" "bbb"]})
 
-(defn make-url [{:keys [page area section query price/min price/max]
-                 :or   {page 0}}]
-  (format "http://%s.craigslist.org/search/%s?s=%s&query=%s&sort=pricedsc%s"
-          area (get section-map section section) page query
-          (str (when min (format "&min_price=%s" min))
-               (when max (format "&max_price=%s" max)))))
-
-(defn search-str->query-str [search-str]
-  (str/replace search-str " " "%20"))
+(defn make-req-map
+  "Making a Craigslist search request"
+  [{:keys [page area section query price/min price/max]
+    :or   {page 0}}]
+  (beetle/->req
+   {:url          (format "http://%s.craigslist.org/search/%s" area (get section-map section section))
+    :query-params {"s"         page
+                   "query"     query
+                   "sort"      "pricedsc"
+                   "min_price" min
+                   "max_price" max}}))
 
 (defn item-count->page-count [num-selected-string]
   (-> num-selected-string read-string (/ 100) int inc))
 
 (defn get-num-pages [{:keys [section area] :as query}]
-  (try (let [url                (make-url query)
-             page               (u/fetch-url url)
-             num-selected-large (-> (html/select page [:a.totalcount])
-                                    first :content first)
-             num-selected       (or num-selected-large
-                                    (-> (html/select page [:span.button.pagenum])
-                                        html/texts first (str/split #" ") last))]
+  (try (let [url (make-req-map query)
+             page (http/get url)
+             num-selected (-> (html/select page [:.totalcount])
+                              first :content first)]
          (item-count->page-count num-selected))
-       (catch Exception e 0)))
+       (catch Exception e
+         (log/warn e)
+         0)))
 
-(defn list->fragments [page]
-  (html/select page [:p.row :span.txt]))
+(defn page->results [page]
+  (html/select page [:li.result-row]))
 
-(defn fragment->price [f]
-  (->> (html/select f [:span.txt :span.price])
+(defn result->price [f]
+  (->> (html/select f [:span.result-price])
        (map (comp u/dollar-str->int first :content))
        first))
 
-(defn fragment->title [f]
-  (->> (html/select f [:span.txt :span.pl :a :span])
+(defn result->title [f]
+  (->> (html/select f [:a.result-title])
        (map (comp first :content))
        first))
 
-(defn fragment->date [f]
-  (->> (html/select f [:span.txt :time])
+(defn result->date [f]
+  (->> (html/select f [:time.result-date])
        (map (comp :datetime :attrs))
        first))
 
-(defn fragment->item-url [f area]
-  (->> (html/select f [:span.txt :span.pl :a])
-       (map (comp :href :attrs))
-       (map (fn [u] (str "http://" area
-                        ".craigslist.org" u)))
-       first))
+(defn result->item-url [f area]
+  (->> (html/select f [:a.result-title])
+       first :attrs :href))
 
-(defn fragment->region [f]
+(defn result->region [f]
   {:post [(string? %)]}
-  (->> (html/select f [:span.txt :span.pnr :small])
-       (map (comp first :content))
-       (remove map?)
-       (map str/trim)
-       (map (fn [s] (apply str (drop-last (rest s)))))
-       first))
+  (->> (html/select f [:span.result-hood])
+       first :content first))
 
-(defn page->preview [page]
-  (->> (html/select page [:div.slide.first :img])
-       first
-       :attrs :src))
+(defn result->id [f]
+  (-> f :attrs :data-pid))
 
-(defn page->address [page]
-  (->> (html/select page [:.mapaddress])
-       first
-       :content
-       (remove map?)
-       (map str/trim)
-       (remove empty?)
-       (apply str)))
+(defn result->repost-of-id [f]
+  (-> f :attrs :data-repost-of))
 
-(defn page->reply [area page]
-  (if-let [url (as-> page v
-                 (html/select v [:a#replylink])
-                 (first v)
-                 (:attrs v)
-                 (:href v)
-                 (when v
-                   (format "http://%s.craigslist.org%s" area v)))]
-    (->> (html/select (u/fetch-url url) [:ul.pad :li :a])
-         first :content (apply str) str/trim
-         (str "mailto:"))))
+;; (defn page->preview [page]
+;;   (->> (html/select page [:div.slide.first :img])
+;;        first
+;;        :attrs :src))
 
-(defn item-map->preview+address+reply [{:keys [url area] :as item}]
-  (let [page (u/fetch-url url)]
-    (assoc item
-           :preview  (page->preview page)
-           :address  (page->address page)
-           :reply-to (page->reply area page))))
+;; (defn page->address [page]
+;;   (->> (html/select page [:.mapaddress])
+;;        first
+;;        :content
+;;        (remove map?)
+;;        (map str/trim)
+;;        (remove empty?)
+;;        (apply str)))
+
+;; (defn page->reply [area page]
+;;   (if-let [url (as-> page v
+;;                  (html/select v [:a#replylink])
+;;                  (first v)
+;;                  (:attrs v)
+;;                  (:href v))]
+;;     (->> (html/select (http/get url) [:ul.pad :li :a])
+;;          first :content (apply str) str/trim
+;;          (str "mailto:"))))
+
+;; (defn item-map->preview+address+reply [{:keys [url area] :as item}]
+;;   (let [page (http/get url)]
+;;     (assoc item
+;;            :preview  (page->preview page)
+;;            :address  (page->address page)
+;;            :reply-to (page->reply area page))))
 
 (defn trim [o]
   (when o
@@ -123,49 +125,48 @@
   (when o
     (str/lower-case o)))
 
-(defn ->item-map [area price title date item-url region]
-  {:price  price
-   :title  (trim title)
-   :date   (trim date)
-   :region (lower (trim region))
-   :area   area
-   :url    (trim item-url)})
+(defn result->item
+  [area f]
+  (let [url (result->item-url f area)]
+    (try
+      {:price     (result->price f)
+       :title     (trim (result->title f))
+       :date      (trim (result->date f))
+       :region    (trim (result->region f))
+       :area      area
+       :url       (trim url)
+       :id        (result->id f)
+       :repost-of (result->repost-of-id f)}
+      (catch Exception e
+        (throw (ex-info "Failure while loading result!"
+                        {:area area
+                         :f    f
+                         :url  url}
+                        e))))))
 
-(defonce fragment->item
-  (memoize
-   (fn [area f]
-     (let [url (fragment->item-url f area)]
-       (try
-         (->item-map
-          area
-          (fragment->price f)
-          (fragment->title f)
-          (fragment->date f)
-          url
-          (fragment->region f))
-         (catch Exception e
-           (throw (ex-info "Failure while loading item!"
-                           {:area area
-                            :f    f
-                            :url  url}
-                           e))))))))
-
-(defn url+area->items [url area]
-  (let [page (u/fetch-url url)]
-    (map (partial fragment->item area)
-         (list->fragments page))))
+(defn req+area->items [req area]
+  (let [page (http/get req)]
+    (map (partial result->item area)
+         (page->results page))))
 
 (defn page-count->page-seq [page-count]
   (map #(-> % (* 100) str)
        (range 0 page-count)))
 
+(defn mapcat*
+  "A mapcat which doesn't force all the sub-iterators."
+  [f [c & coll* :as coll]]
+  (when coll
+    (lazy-cat (f c)
+              (mapcat* f coll*))))
+
 (defn cl-item-seq [{:keys [area] :as query}]
   (let [page-count (get-num-pages query)
         page-range (page-count->page-seq page-count)]
-    (mapcat (fn [page-number]
-              (let [url (make-url (assoc query :page page-number))]
-                (url+area->items url area)))
-            page-range)))
+    (mapcat* (fn [page-number]
+               (let [req (make-req-map (assoc query :page page-number))]
+                 (req+area->items req area)))
+             page-range)))
 
 (defn get-section-code
   [section-key]
@@ -193,11 +194,12 @@
               :area    area
               :section section}))
   ([{:keys [query area section] :as q}]
-   (let [q           (update q :query search-str->query-str)
-         section-seq (u/->flat-seq (get-section-code section))
+   (let [section-seq (u/->flat-seq (get-section-code section))
          area-seq    (u/->flat-seq (get-area-code area))]
      (or (apply concat
                 (for [a area-seq
                       s section-seq]
-                  (cl-item-seq (assoc q :area a :section s))))
+                  (-> (assoc q :area a :section s)
+                      (cl-item-seq )
+                      #_vector)))
          []))))

@@ -1,16 +1,16 @@
 (ns crajure.areas
   (:require [net.cgrand.enlive-html :as html]
-            [crajure.util :as u]))
+            [crajure.http :as http]))
 
 (defn generate-areas []
   (->> (html/select
-        (u/fetch-url "https://www.craigslist.org/about/sites")
+        (http/get "https://www.craigslist.org/about/sites")
         [:li :> :a])
        (map (comp :href :attrs))
-       (map #(-> (re-find #"\/\/([a-z]*)" %) second))
+       (keep #(-> (re-find #"\/\/([a-z]*)" %) second))
        set))
 
-(defonce areas
+(def areas
   (memoize generate-areas))
 
 (defn area-map []
