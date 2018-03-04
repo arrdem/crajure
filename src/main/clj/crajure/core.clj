@@ -90,11 +90,12 @@
   (-> f :attrs :data-repost-of))
 
 (defn result->image-ids [f]
-  (as-> (html/select f [:.result-image.gallery]) %
-    (first %) (:attrs %) (:data-ids %)
-    (str/split % #",")
-    (mapv #(str/replace % #".*?_" "") %)
-    (set %)))
+  (if-let [ids (as-> (html/select f [:.result-image.gallery]) %
+                 (first %) (:attrs %) (:data-ids %))]
+    (as-> ids %
+      (str/split % #",")
+      (mapv #(str/replace % #".*?_" "") %)
+      (set %))))
 
 ;; (defn page->preview [page]
 ;;   (->> (html/select page [:div.slide.first :img])
