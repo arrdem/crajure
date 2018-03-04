@@ -9,6 +9,19 @@
                  [enlive "1.1.6"]
                  [pandect "0.6.1"]]
 
+  :source-paths      ["src/main/clj"
+                      "src/main/cljc"]
+  :java-source-paths ["src/main/jvm"]
+  :test-paths        ["src/test/clj"
+                      "src/test/cljc"]
+  :resource-paths ["src/main/resources"]
+
+  :profiles {:dev {:dependencies      []
+                   :source-paths      ["src/dev/clj"
+                                       "src/dev/clj"]
+                   :java-source-paths ["src/dev/jvm"]
+                   :resource-paths    ["src/dev/resources"]}}
+
   :deploy-repositories [["releases" :clojars]]
 
   :plugins [[me.arrdem/lein-git-version "[2.0.0,3.0.0)"]]
