@@ -79,7 +79,6 @@
        first :attrs :href))
 
 (defn result->region [f]
-  {:post [(string? %)]}
   (->> (html/select f [:span.result-hood])
        first :content first))
 
