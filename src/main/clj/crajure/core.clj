@@ -10,7 +10,8 @@
             [crajure.areas :as a]
             [crajure.http :as http]
             [crajure.util :as u]
-            [net.cgrand.enlive-html :as html]))
+            [net.cgrand.enlive-html :as html]
+            [clojure.string :as str]))
 
 ;; FIXME (arrdem 2018-03-04):
 ;;   This is woefully incomplete, and should really be factored out like areas is.
@@ -88,6 +89,13 @@
 (defn result->repost-of-id [f]
   (-> f :attrs :data-repost-of))
 
+(defn result->image-ids [f]
+  (as-> (html/select f [:.result-image.gallery]) %
+    (first %) (:attrs %) (:data-ids %)
+    (str/split % #",")
+    (mapv #(str/replace % #".*?_" "") %)
+    (set %)))
+
 ;; (defn page->preview [page]
 ;;   (->> (html/select page [:div.slide.first :img])
 ;;        first
@@ -123,14 +131,17 @@
   [area f]
   (let [url (result->item-url f area)]
     (try
-      {:price     (result->price f)
+      {:type      ::item
+       :price     (result->price f)
        :title     (u/trim (result->title f))
        :date      (u/trim (result->date f))
        :region    (u/trim (result->region f))
        :area      area
-       :url       (u/trim url)
+       :item-url  (u/trim url)
        :id        (result->id f)
-       :repost-of (result->repost-of-id f)}
+       :repost-of (result->repost-of-id f)
+       :image-ids (result->image-ids f)
+       ::html     f}
       (catch Exception e
         (throw (ex-info "Failure while loading result!"
                         {:area area
