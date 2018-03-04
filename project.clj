@@ -5,12 +5,9 @@
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [me.arrdem/rate-gate "1.3.1"]
-                 [me.arrdem/beetle "0.0.0"]
+                 [me.arrdem/beetle "0.0.1"]
                  [clj-http "3.7.0"]
                  [enlive "1.1.6"]
-                 [pandect "0.6.1"]
-                 [com.taoensso/nippy "2.14.0"]
                  [org.clojure/tools.logging "0.4.0"]]
 
   :source-paths      ["src/main/clj"

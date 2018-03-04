@@ -1,17 +1,19 @@
 (ns crajure.core
-  "A tool kit for crawling Craigslist."
+  "A tool kit for crawling Craigslist.
+
+  Leverages Beetle for caching, rate limits, and makes some attempt to emulate a real browser."
   {:authors ["Reid \"arrdem\" McKenzie <me@arrdem.com>"
              "Bryan Maass <bryan.maass@gmail.com>"],
    :license "Eclipse Public License 1.0"}
-  (:require [clojure.string :as str]
+  (:require [beetle.core :as beetle]
             [clojure.tools.logging :as log]
-            [net.cgrand.enlive-html :as html]
-            [clj-http.util :as http-util]
-            [beetle.core :as beetle]
             [crajure.areas :as a]
+            [crajure.http :as http]
             [crajure.util :as u]
-            [crajure.http :as http]))
+            [net.cgrand.enlive-html :as html]))
 
+;; FIXME (arrdem 2018-03-04):
+;;   This is woefully incomplete, and should really be factored out like areas is.
 (def section-map
   {:community/all      "ccc"
    :events/all         "eee"
@@ -117,24 +119,16 @@
 ;;            :address  (page->address page)
 ;;            :reply-to (page->reply area page))))
 
-(defn trim [o]
-  (when o
-    (str/trim o)))
-
-(defn lower [o]
-  (when o
-    (str/lower-case o)))
-
 (defn result->item
   [area f]
   (let [url (result->item-url f area)]
     (try
       {:price     (result->price f)
-       :title     (trim (result->title f))
-       :date      (trim (result->date f))
-       :region    (trim (result->region f))
+       :title     (u/trim (result->title f))
+       :date      (u/trim (result->date f))
+       :region    (u/trim (result->region f))
        :area      area
-       :url       (trim url)
+       :url       (u/trim url)
        :id        (result->id f)
        :repost-of (result->repost-of-id f)}
       (catch Exception e
@@ -180,7 +174,7 @@
     code
     (throw (Exception. (str "Invalid Area Code, " area-key)))))
 
-;; FIXME:
+;; FIXME (arrdem 2018-03-04):
 ;; - add :price/min
 ;; - add :price/max
 (defn query-cl

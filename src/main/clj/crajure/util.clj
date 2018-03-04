@@ -1,5 +1,6 @@
 (ns crajure.util
-  "leftover bits and bats")
+  "leftover bits and bats"
+  (:require [clojure.string :as str]))
 
 (defn dollar-str->int [x-dollars]
   (try (->> x-dollars
@@ -30,3 +31,11 @@
    (if (seq? x)
      (vec x)
      (vector x))))
+
+(defn trim [o]
+  (when o
+    (str/trim o)))
+
+(defn lower [o]
+  (when o
+    (str/lower-case o)))
