@@ -13,11 +13,15 @@
           (.replace "+" "%20")))
 
 (defn format-params [params]
-  (->> (for [[k v] params]
-         (str k "="
-              (if-not (= k "query")
-                (url-encode v) v)))
-       (str/join "&")))
+  (->>  params
+        (mapcat (fn [[k v]]
+                  (if (or (not (seq? v))
+                          (string? v))
+                    [(str k "="
+                          (if-not (= k "query")
+                            (url-encode v) v))]
+                    (map #(str k "=" (url-encode %)) v))))
+        (str/join "&")))
 
 (defn q->search-url [{:keys [area section params] :as q}]
   (format "http://%s.craigslist.org/search/%s?%s"
@@ -30,15 +34,14 @@
   (-> num-selected-string read-string (/ 100) int inc))
 
 (defn get-num-pages [{:keys [section area] :as q}]
-  (try (let [url                (q->search-url q)
-             page               (u/fetch-url url)
-             num-selected-large (-> (html/select page [:a.totalcount])
-                                    first :content first)
-             num-selected       (or num-selected-large
-                                    (-> (html/select page [:span.button.pagenum])
-                                        html/texts first (str/split #" ") last))]
-         (item-count->page-count num-selected))
-       (catch Exception e 0)))
+  (let [url                (q->search-url q)
+        page               (u/fetch-url url)
+        num-selected-large (-> (html/select page [:a.totalcount])
+                               first :content first)
+        num-selected       (or num-selected-large
+                               (-> (html/select page [:span.button.pagenum])
+                                   html/texts first (str/split #" ") last))]
+    (item-count->page-count num-selected)))
 
 (defn list->fragments [page]
   (html/select page [:p.row :span.txt]))
@@ -96,6 +99,7 @@
 (defn item-map->preview+address [{:keys [url area] :as item}]
   (let [page (u/fetch-url url)]
     (assoc item
+           :type     ::item+
            :preview  (page->preview page)
            :address  (page->address page))))
 
@@ -108,7 +112,8 @@
     (str/lower-case o)))
 
 (defn ->item-map [area price title date item-url region]
-  {:price  price
+  {:type   ::item
+   :price  price
    :title  (trim title)
    :date   (trim date)
    :region (lower (trim region))
@@ -136,13 +141,14 @@
   (map #(-> % (* 100) str)
        (range 0 page-count)))
 
+(defn cl-item-page [{:keys [section area] :as q} page-number]
+  (let [url (q->search-url (assoc-in q [:params "s"] page-number))]
+    (url+area->items url area)))
+
 (defn cl-item-seq [{:keys [section area] :as q}]
   (let [page-count (get-num-pages q)
         page-range (page-count->page-seq page-count)]
-    (mapcat (fn [page-number]
-              (let [url (q->search-url (assoc-in q [:params "s"] page-number))]
-                (url+area->items url area)))
-            page-range)))
+    (mapcat (partial cl-item-page q) page-range)))
 
 (defn query-cl
   "where query map contains a map of

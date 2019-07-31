@@ -1,9 +1,18 @@
 (ns crajure.util
   (:require [clojure.java.io :as io]
             [net.cgrand.enlive-html :as html]
-            [pandect.algo.sha256 :refer [sha256]])
+            [pandect.algo.sha256 :refer [sha256]]
+            [clojure.string :as str])
   (:import [java.io File StringReader StringWriter]
            [java.net InetSocketAddress Proxy Proxy$Type URL URLConnection]))
+
+(defn url->url+params [url]
+  (let [[_ url bits] (re-find #"([^&\?]*)(\?.*)" url)
+        kvs          (->> (str/split bits #"[\?&]")
+                          (remove empty?)
+                          (map #(vec (str/split % #"=")))
+                          (into {}))]
+    [url kvs]))
 
 (def ^:dynamic *proxies*
   nil)

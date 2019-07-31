@@ -19,6 +19,7 @@
    :all (vec (areas))))
 
 (defn as-areas [area-key]
-  (if-let [code (get (area-map) (keyword area-key))]
-    code
-    (throw (Exception. (str "Invalid Area Code, " area-key)))))
+  (or (if-let [code (get (area-map) (keyword area-key))]
+        (cond (string? code) [code]
+              (seq? code)    (mapcat as-areas code)))
+      (throw (Exception. (str "Invalid Area Code, " area-key)))))
